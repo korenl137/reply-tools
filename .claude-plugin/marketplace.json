@@ -1,0 +1,15 @@
+{
+  "name": "reply-tools",
+  "description": "Quote and copy parts of a Claude Code reply",
+  "owner": {
+    "name": "Yun Ji"
+  },
+  "plugins": [
+    {
+      "name": "reply-tools",
+      "source": "./",
+      "description": "Quote and copy parts of a reply",
+      "version": "0.2.3"
+    }
+  ]
+}

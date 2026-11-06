@@ -1,0 +1,11 @@
+{
+  "name": "reply-tools",
+  "version": "0.2.3",
+  "description": "Quote and copy parts of a reply: a quote button per paragraph, /quote for sentences, earlier replies and the mouse selection, copy buttons for commands (a leading ! or $ is dropped), code blocks and the whole reply",
+  "author": {
+    "name": "Yun Ji"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/korenl137/reply-tools",
+  "repository": "https://github.com/korenl137/reply-tools"
+}

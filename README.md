@@ -41,7 +41,7 @@ claude plugin test .
 
 Type checks use TypeScript 5.6.3 against Claude Code's own declarations in `.claude-plugin/types/`.
 That folder is gitignored; run `/plugin-types` in a Claude Code session to write it.
-`PROVENANCE.md` records where the code came from and what was checked in a native session.
+`CHANGELOG.md` lists releases. `PROVENANCE.md` records where the code came from and what was checked in a native session.
 
 ## AI disclosure
 

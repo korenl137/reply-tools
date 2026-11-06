@@ -8,6 +8,7 @@ All notable changes to this project are recorded here, in the format of
 ### Added
 
 - Public repository, `README.md` and `CHANGELOG.md`.
+- Plugin icon: the copy mark on a blue square (`.claude-plugin/icon.png`).
 
 ### Changed
 

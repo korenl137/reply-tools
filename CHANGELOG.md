@@ -7,7 +7,7 @@ All notable changes to this project are recorded here, in the format of
 
 ### Fixed
 
-- A reply drawn by prismantis got one ❝ for the whole reply, and no `[copy]` or `[lines]` header on code blocks. reply-tools now asks prismantis (`$.prismantis.markdown`) to draw each paragraph and keeps its own layout around it: a ❝ per paragraph and the code headers. Without prismantis, or if it answers nothing for a paragraph, the old one-❝ drawing stays. prismantis does not offer its reply frame to other mods, so reply-tools draws one in the same look (round, Claude's orange, the `⬤  Claude` label, prismantis's default catppuccin-mocha fill `#1d2335`); another prismantis theme gets that fill too. prismantis's own `── bash` label shows under the code header.
+- A reply drawn by prismantis got one ❝ for the whole reply, and no `[copy]` or `[lines]` header on code blocks. reply-tools now asks prismantis (`$.prismantis.markdown`) to draw each paragraph and keeps its own layout around it: a ❝ per paragraph and the code headers. Without prismantis, or if it answers nothing for a paragraph, the old one-❝ drawing stays. prismantis does not offer its reply frame to other mods, so reply-tools draws one in the same look (round, Claude's orange, the `⬤  Claude` label, the fill of gruvbox-dark, `#262c30`, the theme in use); under another prismantis theme the fill differs (catppuccin-mocha's is `#1d2335`). prismantis's own `── bash` label shows under the code header.
 
 ## [0.2.3] - 2026-11-06
 

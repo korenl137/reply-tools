@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { allCode, commandOf, copied, copyInfo, listItems, copyOf, mark, inlineCommands, parse, plain, preview, quoted, sentences } from '../hooks/blocks.ts'
+import { allCode, commandOf, copied, copyInfo, listItems, widest, copyOf, mark, inlineCommands, parse, plain, preview, quoted, sentences } from '../hooks/blocks.ts'
 
 const fence = (lang: string, body: string): string => `\`\`\`${lang}\n${body}\n\`\`\``
 
@@ -95,6 +95,16 @@ describe('listItems', () => {
   test('a block that is not a list has no items', () => {
     expect(listItems('plain text\n- not first')).toBeUndefined()
     expect(listItems(fence('sh', '- x'))).toBeUndefined()
+  })
+})
+
+describe('widest', () => {
+  test('counts terminal cells: Hangul takes two, marks are dropped, a fenced line gets 4 for its box', () => {
+    expect(widest(['abc'])).toBe(3)
+    expect(widest(['가나다'])).toBe(6)
+    expect(widest(['**bold** `x` [t](http://u)'])).toBe(8)
+    expect(widest([fence('sh', 'echo hi')])).toBe(11)
+    expect(widest(['> quoted', 'a\n\nlonger line'])).toBe(11)
   })
 })
 

@@ -74,6 +74,27 @@ export function listItems(text: string): string[] | undefined {
   return items.map(it => it.join('\n').trimEnd())
 }
 
+// Terminal cells of a string: Hangul, CJK and fullwidth forms take two. shortcut: no combining marks or emoji sequences.
+const cells = (s: string): number => [...s].reduce((n, c) => n + (/[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe6f\uff00-\uff60\uffe0-\uffe6]/.test(c) ? 2 : 1), 0)
+
+/**
+ * The widest line of these blocks as drawn, roughly: markdown marks and fence lines are dropped, a fenced line gets 4 cells for its box.
+ * shortcut: an over-estimate for tables and links, so the frame can be a little wider than the text.
+ */
+export function widest(texts: string[]): number {
+  let w = 0
+  for (const text of texts) {
+    let inFence = false
+    for (const raw of text.split('\n')) {
+      if (FENCE.test(raw)) { inFence = !inFence; continue }
+      const line = inFence ? raw : raw.replace(/(\*\*|__|`)/g, '').replace(/\[([^\]]+)\]\([^)\s]+\)/g, '$1').replace(/^\s*>\s?/, '')
+      w = Math.max(w, cells(line) + (inFence ? 4 : 0))
+    }
+  }
+
+  return w
+}
+
 const promptOf = (line: string, lang: string): string | undefined => {
   const m = PROMPT.exec(line) ? line.replace(PROMPT, '') : lang === 'powershell' || lang === 'pwsh' || lang === 'ps1' || lang === 'cmd' || lang === 'bat' ? /^\s*>\s(.*)$/.exec(line)?.[1] : undefined
 

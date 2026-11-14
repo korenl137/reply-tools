@@ -10,7 +10,7 @@
  */
 import type { Elements, Register, RenderElement } from 'claude-code'
 
-import { allCode, copied, copyInfo, inlineCommands, listItems, mark, parse, plain, preview, quoted, sentences } from './blocks.ts'
+import { allCode, copied, copyInfo, inlineCommands, listItems, mark, parse, plain, preview, quoted, sentences, widest } from './blocks.ts'
 import type { Block } from './blocks.ts'
 
 const PANE = 'reply-tools'
@@ -24,7 +24,7 @@ const COPY_COLOR = 'suggestion'
 // prismantis draws a reply in a round frame of Claude's orange (replyStyle `framed`: no fill; `bubble` adds a fill, `solid` drops the frame).
 // Its frame is not offered to other mods, so a reply drawn through it paragraph by paragraph is framed here, always as `framed`.
 // shortcut: no fill and no theme color; read replyStyle and replyFill from prismantis when it offers them, or if `bubble` is used.
-const FRAME = { flexGrow: 1, paddingX: 1, borderStyle: 'round', borderColor: 'claude', borderDimColor: true } as const
+const FRAME = { paddingX: 1, borderStyle: 'round', borderColor: 'claude', borderDimColor: true } as const
 
 // the pane's state: replies newest first, each as its blocks; the one on view; what is picked and which paragraphs are split
 let replies: string[][] = []
@@ -108,12 +108,18 @@ async function showLines($: any, text: string, what: string) {
 
 // prismantis (when installed and on) draws markdown in its theme for other mods: https://github.com/NahumLitvin/prismantis#other-mods
 // All paragraphs or none, so a half-themed reply never appears; any failure keeps the old one-❝ drawing.
-const themedBlocks = async ($: any, e: { surface: string; viewport?: { columns?: number } }, texts: string[]): Promise<RenderElement[] | undefined> => {
+// The engine does not shrink a Box to its text, so the frame's width is worked out here: the text's widest line plus the frame's own 7 cells
+// (border 2, padding 2, the ❝ gutter 2 and its gap 1), and 2 spare cells in case the estimate is short; the whole window when the text needs it.
+const FRAME_CELLS = 7
+const themedBlocks = async ($: any, e: { surface: string; viewport?: { columns?: number } }, texts: string[]): Promise<{ drawn: RenderElement[]; width: number | undefined } | undefined> => {
   try {
-    const columns = Math.max(20, (e.viewport?.columns ?? 100) - 6)
+    const room = e.viewport?.columns ?? 100
+    const cap = Math.max(20, room - 6)
+    const want = Math.max(20, widest(texts)) + 2
+    const columns = Math.min(cap, want)
     const drawn: (RenderElement | undefined)[] = await Promise.all(texts.map(text => $.prismantis.markdown({ surface: e.surface, text, columns })))
 
-    return drawn.every(d => d !== undefined) ? (drawn as RenderElement[]) : undefined
+    return drawn.every(d => d !== undefined) ? { drawn: drawn as RenderElement[], width: want < cap ? columns + FRAME_CELLS : undefined } : undefined
   } catch {
     return undefined
   }
@@ -142,7 +148,8 @@ export const register: Register = on => {
       const { Box, Text, Button, Markdown } = $.ui.resolve(e)
       // another mod's drawing is opaque, so a paragraph is quoted on its own only when prismantis can draw each paragraph for us
       const split = unitsOf(blocks, true)
-      const themed = drawn.type === 'engine' ? undefined : await themedBlocks($, e, split.map(u => u.text))
+      const through = drawn.type === 'engine' ? undefined : await themedBlocks($, e, split.map(u => u.text))
+      const themed = through?.drawn
       const units = themed === undefined ? unitsOf(blocks, false) : split
       const engineDrawn = drawn.type === 'engine' || themed !== undefined
       const cmds = inlineCommands(e.props.text)
@@ -200,7 +207,7 @@ export const register: Register = on => {
               {'⬤  Claude'}
             </Text>
           ) : null}
-          <Box flexDirection="row" marginTop={themed === undefined ? 1 : 0} {...(themed === undefined ? {} : FRAME)}>
+          <Box flexDirection="row" marginTop={themed === undefined ? 1 : 0} {...(themed === undefined ? {} : through?.width === undefined ? { ...FRAME, flexGrow: 1 } : { ...FRAME, width: through.width })}>
             {themed === undefined ? (
               <Box minWidth={2}>
                 <Text>{e.props.isFirstOfReply ? '⏺' : ' '}</Text>

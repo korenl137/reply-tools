@@ -54,6 +54,26 @@ export function parse(text: string): Block[] {
   }, [])
 }
 
+/**
+ * A list block as its top-level items, each with its own marker (so an ordered item keeps its number) and its nested lines;
+ * undefined when the block is not a list. shortcut: a marker line indented as deep as the first one starts an item, so a
+ * fenced block inside an item that shows such a line is cut there; the item text stays as written.
+ */
+export function listItems(text: string): string[] | undefined {
+  const lines = text.split('\n')
+  const first = lines.find(l => l.trim() !== '')
+  if (first === undefined || !ITEM.test(first)) return undefined
+  const base = first.length - first.trimStart().length
+  const items: string[][] = []
+  for (const line of lines) {
+    const isStart = ITEM.test(line) && line.length - line.trimStart().length <= base
+    if (isStart) items.push([line])
+    else items.at(-1)?.push(line)
+  }
+
+  return items.map(it => it.join('\n').trimEnd())
+}
+
 const promptOf = (line: string, lang: string): string | undefined => {
   const m = PROMPT.exec(line) ? line.replace(PROMPT, '') : lang === 'powershell' || lang === 'pwsh' || lang === 'ps1' || lang === 'cmd' || lang === 'bat' ? /^\s*>\s(.*)$/.exec(line)?.[1] : undefined
 

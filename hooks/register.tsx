@@ -10,7 +10,8 @@
  */
 import type { Elements, Register, RenderElement } from 'claude-code'
 
-import { allCode, copied, copyInfo, inlineCommands, mark, parse, plain, preview, quoted, sentences } from './blocks.ts'
+import { allCode, copied, copyInfo, inlineCommands, listItems, mark, parse, plain, preview, quoted, sentences } from './blocks.ts'
+import type { Block } from './blocks.ts'
 
 const PANE = 'reply-tools'
 const REPLIES = 5
@@ -118,6 +119,10 @@ const themedBlocks = async ($: any, e: { surface: string; viewport?: { columns?:
   }
 }
 
+// What one ❝ quotes: a block, or with prismantis drawing the paragraphs each top-level item of a list (the item keeps its number).
+const unitsOf = (blocks: Block[], isSplit: boolean): { i: number; text: string }[] =>
+  blocks.flatMap((b, i) => (isSplit && !b.fence ? listItems(b.text) : undefined)?.map(text => ({ i, text })) ?? [{ i, text: b.text }])
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'quote', description: 'Quote the last replies into your prompt: pick paragraphs or sentences; "sel" quotes the mouse selection', immediate: true }).catch(() => undefined)
@@ -136,7 +141,9 @@ export const register: Register = on => {
       if (blocks.length === 0) return drawn
       const { Box, Text, Button, Markdown } = $.ui.resolve(e)
       // another mod's drawing is opaque, so a paragraph is quoted on its own only when prismantis can draw each paragraph for us
-      const themed = drawn.type === 'engine' ? undefined : await themedBlocks($, e, blocks.map(b => b.text))
+      const split = unitsOf(blocks, true)
+      const themed = drawn.type === 'engine' ? undefined : await themedBlocks($, e, split.map(u => u.text))
+      const units = themed === undefined ? unitsOf(blocks, false) : split
       const engineDrawn = drawn.type === 'engine' || themed !== undefined
       const cmds = inlineCommands(e.props.text)
       const id = String(e.requestId)
@@ -200,14 +207,16 @@ export const register: Register = on => {
               </Box>
             ) : null}
             <Box flexDirection="column" flexGrow={1}>
-              {blocks.map((b, i) => {
+              {units.map((u, k) => {
+                const i = u.i
+                const b = blocks[i]!
                 const c = copyInfo(b)
 
                 return (
-                  <Box key={`b${i}`} flexDirection="row" columnGap={1} alignItems="flex-start" marginTop={i === 0 ? 0 : 1}>
+                  <Box key={`b${k}`} flexDirection="row" columnGap={1} alignItems="flex-start" marginTop={k === 0 || units[k - 1]!.i === i ? 0 : 1}>
                     {/* the gutter holds the quote button alone, so a copy click cannot land on it */}
                     <Box flexShrink={0} minWidth={2}>
-                      <Button key={`q${i}`} label="❝" plain onPress={() => void fillPrompt($, [b.text], '', TRAILER)} />
+                      <Button key={`q${k}`} label="❝" plain onPress={() => void fillPrompt($, [u.text], '', TRAILER)} />
                     </Box>
                     <Box flexDirection="column" flexGrow={1} flexShrink={1}>
                       {c === undefined ? null : (
@@ -219,7 +228,7 @@ export const register: Register = on => {
                           </Box>
                         </Box>
                       )}
-                      {themed?.[i] ?? <Markdown key={`m${i}`} text={b.text} />}
+                      {themed?.[k] ?? <Markdown key={`m${k}`} text={u.text} />}
                     </Box>
                   </Box>
                 )

@@ -20,6 +20,10 @@ const TRAILER = '\ncomment: '
 const isCode = (p: string) => /^\s*(```|~~~)/.test(p)
 // Theme key `suggestion`: a blue-violet the theme tunes per light/dark, so it reads on both and is not gray; not a status color (error/success/warning).
 const COPY_COLOR = 'suggestion'
+// prismantis draws a reply in a round frame of Claude's orange on this fill (its default theme catppuccin-mocha, measured in a native session).
+// Its frame is not offered to other mods, so a reply drawn through it paragraph by paragraph is framed here.
+// shortcut: the fill is that one theme's; read it from prismantis when it offers it, or when another theme is used.
+const FRAME = { flexGrow: 1, paddingX: 1, borderStyle: 'round', borderColor: 'claude', borderDimColor: true, backgroundColor: '#1d2335' } as const
 
 // the pane's state: replies newest first, each as its blocks; the one on view; what is picked and which paragraphs are split
 let replies: string[][] = []
@@ -184,10 +188,17 @@ export const register: Register = on => {
 
       return (
         <Box flexDirection="column">
-          <Box flexDirection="row" marginTop={1}>
-            <Box minWidth={2}>
-              <Text>{e.props.isFirstOfReply ? '⏺' : ' '}</Text>
-            </Box>
+          {themed !== undefined && e.props.isFirstOfReply ? (
+            <Text color="claude" bold>
+              {'⬤  Claude'}
+            </Text>
+          ) : null}
+          <Box flexDirection="row" marginTop={themed === undefined ? 1 : 0} {...(themed === undefined ? {} : FRAME)}>
+            {themed === undefined ? (
+              <Box minWidth={2}>
+                <Text>{e.props.isFirstOfReply ? '⏺' : ' '}</Text>
+              </Box>
+            ) : null}
             <Box flexDirection="column" flexGrow={1}>
               {blocks.map((b, i) => {
                 const c = copyInfo(b)

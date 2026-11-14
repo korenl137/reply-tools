@@ -125,6 +125,19 @@ const themedBlocks = async ($: any, e: { surface: string; viewport?: { columns?:
   }
 }
 
+// A render that throws falls back to the plain drawing, which looks like a working reply without its buttons. Say so, once per distinct message.
+let lastFailure = ''
+const renderFailed = ($: any, where: string, err: unknown): void => {
+  const why = `${where}: ${String(err).slice(0, 80)}`
+  if (why === lastFailure) return
+  lastFailure = why
+  try {
+    void Promise.resolve($.ui.toast(`reply-tools could not draw ${why}`)).catch(() => undefined)
+  } catch {
+    // no toast either: the plain drawing is all there is
+  }
+}
+
 // What one ❝ quotes: a block, or with prismantis drawing the paragraphs each top-level item of a list (the item keeps its number).
 const unitsOf = (blocks: Block[], isSplit: boolean): { i: number; text: string }[] =>
   blocks.flatMap((b, i) => (isSplit && !b.fence ? listItems(b.text) : undefined)?.map(text => ({ i, text })) ?? [{ i, text: b.text }])
@@ -245,7 +258,9 @@ export const register: Register = on => {
           {row}
         </Box>
       )
-    } catch {
+    } catch (err) {
+      renderFailed($, 'a reply', err)
+
       return drawn
     }
   })
@@ -370,7 +385,9 @@ export const register: Register = on => {
           })}
         </Box>
       )
-    } catch {
+    } catch (err) {
+      renderFailed($, 'the quote pane', err)
+
       return next(e)
     }
   })

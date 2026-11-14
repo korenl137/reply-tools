@@ -3,6 +3,12 @@
 All notable changes to this project are recorded here, in the format of
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.4] - 2026-11-14
+
+### Fixed
+
+- A reply drawn by prismantis got one ❝ for the whole reply, and no `[copy]` or `[lines]` header on code blocks. reply-tools now asks prismantis (`$.prismantis.markdown`) to draw each paragraph and keeps its own layout around it: a ❝ per paragraph and the code headers. Without prismantis, or if it answers nothing for a paragraph, the old one-❝ drawing stays. prismantis's own `── bash` label shows under the code header.
+
 ## [0.2.3] - 2026-11-06
 
 ### Added

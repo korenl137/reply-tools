@@ -4,7 +4,7 @@
  * Fullscreen terminal (the only place a plugin gets clicks), reply drawn by the engine: the reply is redrawn paragraph by
  * paragraph with a ❝ at the left that quotes it into the prompt, and a header above each fenced block with [copy] and,
  * for two or more non-blank lines, [lines]. Under the reply, one row: inline commands, [reply text], then [All code],
- * [Text only] and [Pick…]. A reply another mod drew keeps that drawing: one ❝ over it, and the row also lists its code blocks.
+ * [Text only] and [Pick…]. A reply prismantis drew is redrawn the same way, each paragraph drawn through it; a reply any other mod drew keeps that drawing: one ❝ over it, and the row also lists its code blocks.
  * /quote opens a pane (last five replies, sentences, number keys); /quote sel quotes the mouse selection;
  * /quote toggle opens or closes the pane.
  */
@@ -101,6 +101,19 @@ async function showLines($: any, text: string, what: string) {
   }
 }
 
+// prismantis (when installed and on) draws markdown in its theme for other mods: https://github.com/NahumLitvin/prismantis#other-mods
+// All paragraphs or none, so a half-themed reply never appears; any failure keeps the old one-❝ drawing.
+const themedBlocks = async ($: any, e: { surface: string; viewport?: { columns?: number } }, texts: string[]): Promise<RenderElement[] | undefined> => {
+  try {
+    const columns = Math.max(20, (e.viewport?.columns ?? 100) - 6)
+    const drawn: (RenderElement | undefined)[] = await Promise.all(texts.map(text => $.prismantis.markdown({ surface: e.surface, text, columns })))
+
+    return drawn.every(d => d !== undefined) ? (drawn as RenderElement[]) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'quote', description: 'Quote the last replies into your prompt: pick paragraphs or sentences; "sel" quotes the mouse selection', immediate: true }).catch(() => undefined)
@@ -118,7 +131,9 @@ export const register: Register = on => {
       const blocks = parse(e.props.text)
       if (blocks.length === 0) return drawn
       const { Box, Text, Button, Markdown } = $.ui.resolve(e)
-      const engineDrawn = drawn.type === 'engine'
+      // another mod's drawing is opaque, so a paragraph is quoted on its own only when prismantis can draw each paragraph for us
+      const themed = drawn.type === 'engine' ? undefined : await themedBlocks($, e, blocks.map(b => b.text))
+      const engineDrawn = drawn.type === 'engine' || themed !== undefined
       const cmds = inlineCommands(e.props.text)
       const id = String(e.requestId)
       // the row's buttons: code blocks (only when the blocks have no ⧉ of their own), inline commands, then the reply as plain text last,
@@ -193,7 +208,7 @@ export const register: Register = on => {
                           </Box>
                         </Box>
                       )}
-                      <Markdown key={`m${i}`} text={b.text} />
+                      {themed?.[i] ?? <Markdown key={`m${i}`} text={b.text} />}
                     </Box>
                   </Box>
                 )

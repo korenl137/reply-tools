@@ -222,6 +222,18 @@ describe('the reply', () => {
     await ui.unmount()
   })
 
+  test('a render that throws still shows the plain drawing, and says so once', async ($, on) => {
+    const l = log()
+    world(on, l)
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+    const ui = await $.ui.mount({ plugin: 'reply-tools', surface: 'terminal', component: 'AssistantMessage', requestId: 'm1', viewport: { columns: 100, rows: 40, isFullscreen: true }, props: { isFirstOfReply: true } as never } as never)
+    expect(await ui.find({ key: 'q0' })).toBeUndefined()
+    await ui.unmount()
+    const again = await $.ui.mount({ plugin: 'reply-tools', surface: 'terminal', component: 'AssistantMessage', requestId: 'm2', viewport: { columns: 100, rows: 40, isFullscreen: true }, props: { isFirstOfReply: true } as never } as never)
+    await again.unmount()
+    expect(l.toasts.filter(t => t.startsWith('reply-tools could not draw a reply'))).toHaveLength(1)
+  })
+
   test('outside a fullscreen terminal nothing is added', async ($, on) => {
     const l = log()
     world(on, l)

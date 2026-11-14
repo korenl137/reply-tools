@@ -3,6 +3,12 @@
 All notable changes to this project are recorded here, in the format of
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.5] - 2026-11-14
+
+### Fixed
+
+- A reply or the `/quote` pane that failed to draw fell back to the plain drawing without a word, so a broken hook looked like a working reply that only lacked its buttons. The failure now shows a toast, once per distinct message.
+
 ## [0.2.4] - 2026-11-14
 
 ### Fixed

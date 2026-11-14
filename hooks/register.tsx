@@ -21,10 +21,10 @@ const TRAILER = '\ncomment: '
 const isCode = (p: string) => /^\s*(```|~~~)/.test(p)
 // Theme key `suggestion`: a blue-violet the theme tunes per light/dark, so it reads on both and is not gray; not a status color (error/success/warning).
 const COPY_COLOR = 'suggestion'
-// prismantis draws a reply in a round frame of Claude's orange on this fill (gruvbox-dark's, the theme in use; catppuccin-mocha's is #1d2335; measured in a native session).
-// Its frame is not offered to other mods, so a reply drawn through it paragraph by paragraph is framed here.
-// shortcut: the fill is that one theme's; read it from prismantis when it offers it, or when another theme is used.
-const FRAME = { flexGrow: 1, paddingX: 1, borderStyle: 'round', borderColor: 'claude', borderDimColor: true, backgroundColor: '#262c30' } as const
+// prismantis draws a reply in a round frame of Claude's orange (replyStyle `framed`: no fill; `bubble` adds a fill, `solid` drops the frame).
+// Its frame is not offered to other mods, so a reply drawn through it paragraph by paragraph is framed here, always as `framed`.
+// shortcut: no fill and no theme color; read replyStyle and replyFill from prismantis when it offers them, or if `bubble` is used.
+const FRAME = { flexGrow: 1, paddingX: 1, borderStyle: 'round', borderColor: 'claude', borderDimColor: true } as const
 
 // the pane's state: replies newest first, each as its blocks; the one on view; what is picked and which paragraphs are split
 let replies: string[][] = []

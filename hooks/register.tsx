@@ -4,13 +4,14 @@
  * Fullscreen terminal (the only place a plugin gets clicks), reply drawn by the engine: the reply is redrawn paragraph by
  * paragraph with a ❝ at the left that quotes it into the prompt, and a header above each fenced block with [copy] and,
  * for two or more non-blank lines, [lines]. Under the reply, one row: inline commands, [reply text], then [All code],
- * [Text only] and [Pick…]. A reply another mod drew keeps that drawing: one ❝ over it, and the row also lists its code blocks.
+ * [Text only] and [Pick…]. A reply prismantis drew is redrawn the same way, each paragraph drawn through it; a reply any other mod drew keeps that drawing: one ❝ over it, and the row also lists its code blocks.
  * /quote opens a pane (last five replies, sentences, number keys); /quote sel quotes the mouse selection;
  * /quote toggle opens or closes the pane.
  */
 import type { Elements, Register, RenderElement } from 'claude-code'
 
-import { allCode, copied, copyInfo, inlineCommands, mark, parse, plain, preview, quoted, sentences } from './blocks.ts'
+import { allCode, copied, copyInfo, inlineCommands, listItems, mark, parse, plain, preview, quoted, sentences, widest } from './blocks.ts'
+import type { Block } from './blocks.ts'
 
 const PANE = 'reply-tools'
 const REPLIES = 5
@@ -20,6 +21,10 @@ const TRAILER = '\ncomment: '
 const isCode = (p: string) => /^\s*(```|~~~)/.test(p)
 // Theme key `suggestion`: a blue-violet the theme tunes per light/dark, so it reads on both and is not gray; not a status color (error/success/warning).
 const COPY_COLOR = 'suggestion'
+// prismantis draws a reply in a round frame of Claude's orange (replyStyle `framed`: no fill; `bubble` adds a fill, `solid` drops the frame).
+// Its frame is not offered to other mods, so a reply drawn through it paragraph by paragraph is framed here, always as `framed`.
+// shortcut: no fill and no theme color; read replyStyle and replyFill from prismantis when it offers them, or if `bubble` is used.
+const FRAME = { paddingX: 1, borderStyle: 'round', borderColor: 'claude', borderDimColor: true } as const
 
 // the pane's state: replies newest first, each as its blocks; the one on view; what is picked and which paragraphs are split
 let replies: string[][] = []
@@ -101,6 +106,29 @@ async function showLines($: any, text: string, what: string) {
   }
 }
 
+// prismantis (when installed and on) draws markdown in its theme for other mods: https://github.com/NahumLitvin/prismantis#other-mods
+// All paragraphs or none, so a half-themed reply never appears; any failure keeps the old one-❝ drawing.
+// The engine does not shrink a Box to its text, so the frame's width is worked out here: the text's widest line plus the frame's own 7 cells
+// (border 2, padding 2, the ❝ gutter 2 and its gap 1), and 2 spare cells in case the estimate is short; the whole window when the text needs it.
+const FRAME_CELLS = 7
+const themedBlocks = async ($: any, e: { surface: string; viewport?: { columns?: number } }, texts: string[]): Promise<{ drawn: RenderElement[]; width: number | undefined } | undefined> => {
+  try {
+    const room = e.viewport?.columns ?? 100
+    const cap = Math.max(20, room - 6)
+    const want = Math.max(20, widest(texts)) + 2
+    const columns = Math.min(cap, want)
+    const drawn: (RenderElement | undefined)[] = await Promise.all(texts.map(text => $.prismantis.markdown({ surface: e.surface, text, columns })))
+
+    return drawn.every(d => d !== undefined) ? { drawn: drawn as RenderElement[], width: want < cap ? columns + FRAME_CELLS : undefined } : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// What one ❝ quotes: a block, or with prismantis drawing the paragraphs each top-level item of a list (the item keeps its number).
+const unitsOf = (blocks: Block[], isSplit: boolean): { i: number; text: string }[] =>
+  blocks.flatMap((b, i) => (isSplit && !b.fence ? listItems(b.text) : undefined)?.map(text => ({ i, text })) ?? [{ i, text: b.text }])
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'quote', description: 'Quote the last replies into your prompt: pick paragraphs or sentences; "sel" quotes the mouse selection', immediate: true }).catch(() => undefined)
@@ -118,7 +146,12 @@ export const register: Register = on => {
       const blocks = parse(e.props.text)
       if (blocks.length === 0) return drawn
       const { Box, Text, Button, Markdown } = $.ui.resolve(e)
-      const engineDrawn = drawn.type === 'engine'
+      // another mod's drawing is opaque, so a paragraph is quoted on its own only when prismantis can draw each paragraph for us
+      const split = unitsOf(blocks, true)
+      const through = drawn.type === 'engine' ? undefined : await themedBlocks($, e, split.map(u => u.text))
+      const themed = through?.drawn
+      const units = themed === undefined ? unitsOf(blocks, false) : split
+      const engineDrawn = drawn.type === 'engine' || themed !== undefined
       const cmds = inlineCommands(e.props.text)
       const id = String(e.requestId)
       // the row's buttons: code blocks (only when the blocks have no ⧉ of their own), inline commands, then the reply as plain text last,
@@ -169,19 +202,28 @@ export const register: Register = on => {
 
       return (
         <Box flexDirection="column">
-          <Box flexDirection="row" marginTop={1}>
-            <Box minWidth={2}>
-              <Text>{e.props.isFirstOfReply ? '⏺' : ' '}</Text>
-            </Box>
+          {themed !== undefined && e.props.isFirstOfReply ? (
+            <Text color="claude" bold>
+              {'⬤  Claude'}
+            </Text>
+          ) : null}
+          <Box flexDirection="row" marginTop={themed === undefined ? 1 : 0} {...(themed === undefined ? {} : through?.width === undefined ? { ...FRAME, flexGrow: 1 } : { ...FRAME, width: through.width })}>
+            {themed === undefined ? (
+              <Box minWidth={2}>
+                <Text>{e.props.isFirstOfReply ? '⏺' : ' '}</Text>
+              </Box>
+            ) : null}
             <Box flexDirection="column" flexGrow={1}>
-              {blocks.map((b, i) => {
+              {units.map((u, k) => {
+                const i = u.i
+                const b = blocks[i]!
                 const c = copyInfo(b)
 
                 return (
-                  <Box key={`b${i}`} flexDirection="row" columnGap={1} alignItems="flex-start" marginTop={i === 0 ? 0 : 1}>
+                  <Box key={`b${k}`} flexDirection="row" columnGap={1} alignItems="flex-start" marginTop={k === 0 || units[k - 1]!.i === i ? 0 : 1}>
                     {/* the gutter holds the quote button alone, so a copy click cannot land on it */}
                     <Box flexShrink={0} minWidth={2}>
-                      <Button key={`q${i}`} label="❝" plain onPress={() => void fillPrompt($, [b.text], '', TRAILER)} />
+                      <Button key={`q${k}`} label="❝" plain onPress={() => void fillPrompt($, [u.text], '', TRAILER)} />
                     </Box>
                     <Box flexDirection="column" flexGrow={1} flexShrink={1}>
                       {c === undefined ? null : (
@@ -193,7 +235,7 @@ export const register: Register = on => {
                           </Box>
                         </Box>
                       )}
-                      <Markdown key={`m${i}`} text={b.text} />
+                      {themed?.[k] ?? <Markdown key={`m${k}`} text={u.text} />}
                     </Box>
                   </Box>
                 )

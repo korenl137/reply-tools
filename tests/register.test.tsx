@@ -181,6 +181,47 @@ describe('the reply', () => {
     await ui.unmount()
   })
 
+  test('a reply prismantis drew is redrawn paragraph by paragraph through it: a ❝ per paragraph, copy headers back', async ($, on) => {
+    const l = log()
+    world(on, l, { drawn: { type: 'Text', children: ['x'] } })
+    on('engine.create', async (_$: any, e: any, next: any) => ({ ...(await next(e)), prismantis: { markdown: async (a: { text: string }) => ({ type: 'Text', children: [`themed ${a.text.slice(0, 4)}`] }) } }) as never)
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+    const ui = await mountReply($, REPLY)
+    expect(await ui.find({ key: 'quote-reply' })).toBeUndefined()
+    await ui.press({ key: 'q1' })
+    expect(l.filled).toEqual(['> beta\ncomment: '])
+    await ui.press({ key: 'c2' })
+    expect(l.copied).toEqual(['sudo echo hi'])
+    expect(await ui.find({ key: 'rt-b2' })).toBeUndefined()
+    await ui.unmount()
+  })
+
+  test('a list drawn through prismantis has a ❝ per top-level item, quoting it with its own number', async ($, on) => {
+    const l = log()
+    world(on, l, { drawn: { type: 'Text', children: ['x'] } })
+    on('engine.create', async (_$: any, e: any, next: any) => ({ ...(await next(e)), prismantis: { markdown: async (a: { text: string }) => ({ type: 'Text', children: [a.text] }) } }) as never)
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+    const ui = await mountReply($, 'intro\n\n7. seven\n   - child\n8. eight\n\nend')
+    await ui.press({ key: 'q2' })
+    expect(l.filled).toEqual(['> 8. eight\ncomment: '])
+    await ui.press({ key: 'q1' })
+    expect(l.filled[1]).toBe('> 7. seven\n>    - child\ncomment: ')
+    expect(await ui.find({ key: 'q3' })).toBeDefined()
+    expect(await ui.find({ key: 'q4' })).toBeUndefined()
+    await ui.unmount()
+  })
+
+  test('prismantis answering nothing for a paragraph keeps the one-❝ drawing', async ($, on) => {
+    const l = log()
+    world(on, l, { drawn: { type: 'Text', children: ['x'] } })
+    on('engine.create', async (_$: any, e: any, next: any) => ({ ...(await next(e)), prismantis: { markdown: async () => undefined } }) as never)
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+    const ui = await mountReply($, REPLY)
+    expect(await ui.find({ key: 'quote-reply' })).toBeDefined()
+    expect(await ui.find({ key: 'q0' })).toBeUndefined()
+    await ui.unmount()
+  })
+
   test('outside a fullscreen terminal nothing is added', async ($, on) => {
     const l = log()
     world(on, l)

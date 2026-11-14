@@ -3,6 +3,12 @@
 All notable changes to this project are recorded here, in the format of
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.4] - 2026-11-14
+
+### Fixed
+
+- A reply drawn by prismantis got one ❝ for the whole reply, and no `[copy]` or `[lines]` header on code blocks. reply-tools now asks prismantis (`$.prismantis.markdown`) to draw each paragraph and keeps its own layout around it: a ❝ per paragraph and the code headers. Without prismantis, or if it answers nothing for a paragraph, the old one-❝ drawing stays. prismantis does not offer its reply frame to other mods, so reply-tools draws one in the look of prismantis's `replyStyle: framed` (round, Claude's orange, the `⬤  Claude` label, no fill); with `bubble` or `solid` set in prismantis the fill would be missing. A list in such a reply gets a ❝ per top-level item: the item keeps its number and its nested lines (prismantis draws an item alone under its own number). Tables, headings, quotes and code blocks stay one block each. The frame is as wide as the widest line needs (Hangul counted as two cells), up to the whole window; the engine does not shrink a Box to its text, so the width is set from the text. prismantis's own `── bash` label shows under the code header.
+
 ## [0.2.3] - 2026-11-06
 
 ### Added

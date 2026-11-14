@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { allCode, commandOf, copied, copyInfo, copyOf, mark, inlineCommands, parse, plain, preview, quoted, sentences } from '../hooks/blocks.ts'
+import { allCode, commandOf, copied, copyInfo, listItems, widest, copyOf, mark, inlineCommands, parse, plain, preview, quoted, sentences } from '../hooks/blocks.ts'
 
 const fence = (lang: string, body: string): string => `\`\`\`${lang}\n${body}\n\`\`\``
 
@@ -83,6 +83,28 @@ describe('plain, sentences, quoted, preview', () => {
   test('preview: the first line cut by characters, and the count of the lines after it', () => {
     expect(preview('a\nb\n\nc')).toBe('a +2')
     expect(preview('가'.repeat(50))).toBe(`${'가'.repeat(35)}…`)
+  })
+})
+
+describe('listItems', () => {
+  test('a list is its top-level items: each keeps its marker and number, nested lines stay with it', () => {
+    expect(listItems('3. three\n   - sub a\n   - sub b\n4. four')).toEqual(['3. three\n   - sub a\n   - sub b', '4. four'])
+    expect(listItems('- a\n\n- b')).toEqual(['- a', '- b'])
+  })
+
+  test('a block that is not a list has no items', () => {
+    expect(listItems('plain text\n- not first')).toBeUndefined()
+    expect(listItems(fence('sh', '- x'))).toBeUndefined()
+  })
+})
+
+describe('widest', () => {
+  test('counts terminal cells: Hangul takes two, marks are dropped, a fenced line gets 4 for its box', () => {
+    expect(widest(['abc'])).toBe(3)
+    expect(widest(['가나다'])).toBe(6)
+    expect(widest(['**bold** `x` [t](http://u)'])).toBe(8)
+    expect(widest([fence('sh', 'echo hi')])).toBe(11)
+    expect(widest(['> quoted', 'a\n\nlonger line'])).toBe(11)
   })
 })
 

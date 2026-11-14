@@ -54,6 +54,47 @@ export function parse(text: string): Block[] {
   }, [])
 }
 
+/**
+ * A list block as its top-level items, each with its own marker (so an ordered item keeps its number) and its nested lines;
+ * undefined when the block is not a list. shortcut: a marker line indented as deep as the first one starts an item, so a
+ * fenced block inside an item that shows such a line is cut there; the item text stays as written.
+ */
+export function listItems(text: string): string[] | undefined {
+  const lines = text.split('\n')
+  const first = lines.find(l => l.trim() !== '')
+  if (first === undefined || !ITEM.test(first)) return undefined
+  const base = first.length - first.trimStart().length
+  const items: string[][] = []
+  for (const line of lines) {
+    const isStart = ITEM.test(line) && line.length - line.trimStart().length <= base
+    if (isStart) items.push([line])
+    else items.at(-1)?.push(line)
+  }
+
+  return items.map(it => it.join('\n').trimEnd())
+}
+
+// Terminal cells of a string: Hangul, CJK and fullwidth forms take two. shortcut: no combining marks or emoji sequences.
+const cells = (s: string): number => [...s].reduce((n, c) => n + (/[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe6f\uff00-\uff60\uffe0-\uffe6]/.test(c) ? 2 : 1), 0)
+
+/**
+ * The widest line of these blocks as drawn, roughly: markdown marks and fence lines are dropped, a fenced line gets 4 cells for its box.
+ * shortcut: an over-estimate for tables and links, so the frame can be a little wider than the text.
+ */
+export function widest(texts: string[]): number {
+  let w = 0
+  for (const text of texts) {
+    let inFence = false
+    for (const raw of text.split('\n')) {
+      if (FENCE.test(raw)) { inFence = !inFence; continue }
+      const line = inFence ? raw : raw.replace(/(\*\*|__|`)/g, '').replace(/\[([^\]]+)\]\([^)\s]+\)/g, '$1').replace(/^\s*>\s?/, '')
+      w = Math.max(w, cells(line) + (inFence ? 4 : 0))
+    }
+  }
+
+  return w
+}
+
 const promptOf = (line: string, lang: string): string | undefined => {
   const m = PROMPT.exec(line) ? line.replace(PROMPT, '') : lang === 'powershell' || lang === 'pwsh' || lang === 'ps1' || lang === 'cmd' || lang === 'bat' ? /^\s*>\s(.*)$/.exec(line)?.[1] : undefined
 

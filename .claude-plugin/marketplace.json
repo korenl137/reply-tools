@@ -9,7 +9,7 @@
       "name": "reply-tools",
       "source": "./",
       "description": "Quote and copy parts of a reply",
-      "version": "0.2.3"
+      "version": "0.2.4"
     }
   ]
 }

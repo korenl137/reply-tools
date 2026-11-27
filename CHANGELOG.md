@@ -3,6 +3,12 @@
 All notable changes to this project are recorded here, in the format of
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.6] - 2026-11-27
+
+### Fixed
+
+- `[Pick…]`, `[lines]`, and `/quote` report when Claude Code cannot place the pane. Pressing Pick again tries to place a waiting pane.
+
 ## [0.2.5] - 2026-11-14
 
 ### Fixed

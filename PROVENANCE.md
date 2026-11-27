@@ -39,3 +39,13 @@ Version 0.2.4 addition (2026-11-14): in a reply drawn through prismantis a list 
 Version 0.2.4 width (2026-11-14): the frame of a prismantis-drawn reply hugs its text: `widest` (hooks/blocks.ts) estimates the widest line, that plus 2 spare cells is the width passed to `$.prismantis.markdown`, and the frame is set to that plus 7 cells of its own (the whole window when the text needs it). Found natively: `alignSelf: 'flex-start'` and `flexGrow: 0` did not shrink the frame, an explicit `width` did. Native (Haiku, `--plugin-dir`, gruvbox-dark, framed): `Done.` and a Korean line drew a 29-cell frame, a list, table and code reply a 33-cell one, a 2-line paragraph the full window. Checks: `claude plugin test` 42 pass. Not checked: very wide tables, a window narrower than 40 cells, a reply whose widest line is a link or an inline code span (over-estimated, so a little wide).
 
 Version 0.2.5 (2026-11-14): a render that throws shows a toast, `reply-tools could not draw a reply: <error>` (or `the quote pane`), once per distinct message, and still returns the plain drawing (`renderFailed` in hooks/register.tsx). Found because a missing constant in 0.2.4 development made every reply lose its buttons with no sign of why. Checks: `claude plugin test` 43 pass; with the helper silenced the new test failed. Native (Haiku, `--plugin-dir`, real lab profile): a throw forced into the reply hook showed the toast over the plain reply. Not checked: the toast on the desktop or mobile surfaces, and how long it stays on screen.
+
+Version 0.2.6 (2026-11-27) reports the engine's reason when Quote or Lines waits unplaced.
+A Pick press retries placement of an undrawn pane and closes one that is placed.
+Tests cover the three entry points on a placement refusal and a later Pick press on a waiting pane.
+In an isolated Claude Code 2.1.332 session at 96 columns, clicking Pick placed and closed the pane.
+A fixture that opened the pane from a timer reproduced an unplaced pane and confirmed that Pick could then place it.
+In the same terminal width, the session-companion Mods hub's Pick ran as an unasked open and waited.
+The placement failure message points to the direct `/quote` command.
+The Lines pane copied both expected lines into the OSC 52 output of the test terminal.
+Windows WSL and mobile clipboard delivery still need a check on those clients.

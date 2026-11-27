@@ -5,7 +5,7 @@ const props = (text: string) => ({ text, isFirstOfReply: true }) as never
 const REPLY = `alpha one. alpha two.\n\nbeta\n\n${fence('bash', '! sudo echo hi')}\n\nuse \`! sudo echo hi\` now`
 
 // `drawn` stands in for what the hooks below reply-tools drew; the engine's own drawing by default
-const world = (on: any, log: { filled: string[]; copied: string[]; toasts: string[]; opened: string[]; closed: string[]; panes: string[] }, opts: { drawn?: unknown; messages?: string[]; selection?: unknown } = {}) => {
+const world = (on: any, log: { filled: string[]; copied: string[]; toasts: string[]; opened: string[]; closed: string[]; panes: { id: string; isPlaced: boolean }[] }, opts: { drawn?: unknown; messages?: string[]; selection?: unknown; unplacedReason?: string } = {}) => {
   on('session.start', async (_$: any, e: any) => ({ cwd: e.cwd }) as never)
   on('command.register', () => ({ value: undefined }) as never)
   on('ui.render', async () => (opts.drawn ?? { type: 'engine', ref: 0 }) as never)
@@ -30,17 +30,17 @@ const world = (on: any, log: { filled: string[]; copied: string[]; toasts: strin
   on('ui.open', (_$: any, e: any) => {
     log.opened.push(e.id)
 
-    return { value: { isPlaced: true } } as never
+    return { value: opts.unplacedReason ? { isPlaced: false, reason: opts.unplacedReason } : { isPlaced: true } } as never
   })
   on('ui.close', (_$: any, e: any) => {
     log.closed.push(e.id)
 
     return { value: undefined } as never
   })
-  on('ui.panes', () => ({ value: log.panes.map(id => ({ id })) }) as never)
+  on('ui.panes', () => ({ value: log.panes }) as never)
   on('ui.invalidate', () => ({ value: undefined }) as never)
 }
-const log = () => ({ filled: [] as string[], copied: [] as string[], toasts: [] as string[], opened: [] as string[], closed: [] as string[], panes: [] as string[] })
+const log = () => ({ filled: [] as string[], copied: [] as string[], toasts: [] as string[], opened: [] as string[], closed: [] as string[], panes: [] as { id: string; isPlaced: boolean }[] })
 const mountReply = ($: any, text: string) => $.ui.mount({ plugin: 'reply-tools', surface: 'terminal', component: 'AssistantMessage', requestId: 'm1', viewport: { columns: 100, rows: 40, isFullscreen: true }, props: props(text) } as never)
 
 describe('the reply', () => {
@@ -136,6 +136,32 @@ describe('the reply', () => {
     await ui.unmount()
   })
 
+  test('Pick, /quote and lines report when the engine could not place the pane', async ($, on) => {
+    const l = log()
+    world(on, l, { messages: ['alpha'], unplacedReason: 'waiting for a wider terminal' })
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+    const ui = await mountReply($, `Intro\n\n${fence('bash', 'echo first\necho second')}`)
+    const quoteError = 'Could not place quote pane. Try /quote directly. (waiting for a wider terminal)'
+    await ui.press({ key: 'rt-pick' })
+    expect(l.toasts.at(-1)).toBe(quoteError)
+    expect((await $.command.run({ command: 'quote', args: '' } as never)).text).toBe(quoteError)
+    await ui.press({ key: 'l1' })
+    expect(l.toasts.at(-1)).toBe('Could not place code ① lines pane. (waiting for a wider terminal)')
+    await ui.unmount()
+  })
+
+  test('Pick places a waiting pane instead of toggling it closed', async ($, on) => {
+    const l = log()
+    l.panes.push({ id: 'reply-tools', isPlaced: false })
+    world(on, l, { messages: ['alpha'] })
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
+    const ui = await mountReply($, 'one\n\ntwo')
+    await ui.press({ key: 'rt-pick' })
+    expect(l.opened).toEqual(['reply-tools'])
+    expect(l.closed).toEqual([])
+    await ui.unmount()
+  })
+
   test('a code block of several lines has [lines]; the pane copies each line alone or all together; a one-line block has no [lines]', async ($, on) => {
     const l = log()
     world(on, l)
@@ -158,7 +184,7 @@ describe('the reply', () => {
 
   test('Pick… again closes the pane it opened (a launcher button sends the same toggle)', async ($, on) => {
     const l = log()
-    l.panes = ['reply-tools']
+    l.panes = [{ id: 'reply-tools', isPlaced: true }]
     world(on, l, { messages: ['alpha'] })
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true } as never)
     const ui = await mountReply($, 'one\n\ntwo')

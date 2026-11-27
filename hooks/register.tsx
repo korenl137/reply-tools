@@ -57,11 +57,21 @@ async function copy($: any, text: string, surface: string, what: string, isCut =
   $.ui.toast(done.isCopied ? copied(what, text, isCut) : `Could not copy: ${done.reason}`)
 }
 
+async function openPane($: any, title: string, fallback = ''): Promise<string | undefined> {
+  const result = await $.ui.open({ id: PANE, title, focus: true, closeOnEscape: true })
+  if (!result.isPlaced) {
+    const message = `Could not place ${title} pane. ${fallback}(${result.reason})`
+    $.ui.toast(message)
+    return message
+  }
+  $.ui.invalidate('ui.render')
+}
+
 // /quote's work, shared by the command and the [Pick…] button: $.command.run skips the calling plugin's own hook, so the button cannot run its own command
 async function quote($: any, args: string): Promise<string> {
   try {
     // toggle (a launcher button and the row's [Pick…]): an open pane closes, its picks with it
-    if (args.trim() === 'toggle' && (await $.ui.panes()).some((pane: { id: string }) => pane.id === PANE)) {
+    if (args.trim() === 'toggle' && (await $.ui.panes()).some((pane: { id: string; isPlaced: boolean }) => pane.id === PANE && pane.isPlaced)) {
       await $.ui.close({ id: PANE })
 
       return 'Quote pane closed.'
@@ -84,10 +94,7 @@ async function quote($: any, args: string): Promise<string> {
     age = 0
     picked = new Set()
     split = new Set()
-    await $.ui.open({ id: PANE, title: 'quote', focus: true, closeOnEscape: true })
-    $.ui.invalidate('ui.render')
-
-    return 'Quote pane opened.'
+    return (await openPane($, 'quote', 'Try /quote directly. ')) ?? 'Quote pane opened.'
   } catch (err) {
     $.ui.toast(`/quote failed: ${String(err).slice(0, 80)}`)
 
@@ -99,8 +106,7 @@ async function quote($: any, args: string): Promise<string> {
 async function showLines($: any, text: string, what: string) {
   try {
     lineView = { what, lines: text.split('\n').filter(l => l.trim() !== '') }
-    await $.ui.open({ id: PANE, title: `${what} lines`, focus: true, closeOnEscape: true })
-    $.ui.invalidate('ui.render')
+    await openPane($, `${what} lines`)
   } catch (err) {
     $.ui.toast(`Lines failed: ${String(err).slice(0, 80)}`)
   }
@@ -193,7 +199,7 @@ export const register: Register = on => {
             {items.length > SHOWN ? <Button key="rt-more" label={isOpen ? '[fewer]' : `[+${items.length - SHOWN} more]`} plain dimColor onPress={() => { isOpen ? expanded.delete(id) : expanded.add(id); $.ui.invalidate('ui.render') }} /> : null}
             {fenced.length > 1 ? <Button key="rt-allcode" plain onPress={() => void copy($, allCode(e.props.text), e.surface, `all ${fenced.length} code blocks`)}><Text color={COPY_COLOR}>[All code]</Text></Button> : null}
             {fenced.length > 0 && hasText ? <Button key="rt-textonly" plain onPress={() => void copy($, plain(e.props.text, false), e.surface, 'text without code')}><Text color={COPY_COLOR}>[Text only]</Text></Button> : null}
-            <Button key="rt-pick" plain onPress={() => void quote($, 'toggle')}><Text color={COPY_COLOR}>[Pick…]</Text></Button>
+            <Button key="rt-pick" plain onPress={async () => { await quote($, 'toggle') }}><Text color={COPY_COLOR}>[Pick…]</Text></Button>
           </Box>
         ) : null
 
@@ -243,7 +249,7 @@ export const register: Register = on => {
                         <Box flexDirection="row" justifyContent="space-between">
                           <Text color={COPY_COLOR}>{`${mark(no(i))} ${b.fence?.lang || 'code'}`}</Text>
                           <Box flexDirection="row" columnGap={1}>
-                            {c.text.split('\n').filter(l => l.trim() !== '').length > 1 ? <Button key={`l${i}`} plain onPress={() => void showLines($, c.text, `code ${mark(no(i))}`)}><Text color={COPY_COLOR}>[lines]</Text></Button> : null}
+                            {c.text.split('\n').filter(l => l.trim() !== '').length > 1 ? <Button key={`l${i}`} plain onPress={() => showLines($, c.text, `code ${mark(no(i))}`)}><Text color={COPY_COLOR}>[lines]</Text></Button> : null}
                             <Button key={`c${i}`} plain onPress={() => void copy($, c.text, e.surface, `code ${mark(no(i))}`, c.isCut)}><Text color={COPY_COLOR}>[copy]</Text></Button>
                           </Box>
                         </Box>
